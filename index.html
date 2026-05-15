@@ -2675,6 +2675,7 @@
         service:     fd.get('service')     || '',
         urgence:     fd.get('urgence')     || '',
         description: fd.get('description') || '',
+        statut:      'Application',
       };
 
       fetch(APPS_SCRIPT_URL + '?' + new URLSearchParams(data).toString(), {
