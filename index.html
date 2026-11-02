@@ -11,6 +11,9 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Montserrat:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+    integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     :root {
       --navy: #0B1728;
@@ -25,6 +28,9 @@
       --border: #E3E8F0;
     }
 
+
+    html { scroll-behavior: smooth; }
+    #devis-form { scroll-margin-top: 96px; }
 
     * {
       box-sizing: border-box;
@@ -1400,79 +1406,184 @@
 
     .areas-map-wrap {
       position: relative;
+      isolation: isolate; /* keep Leaflet's z-indexes under the fixed nav */
       border-radius: 14px;
       overflow: hidden;
-      height: 340px;
+      height: 480px;
       border: 1px solid var(--border);
       box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
-      margin-bottom: 36px;
+      background: #EEF1F5;
     }
 
-    .areas-map-wrap img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .areas-map-overlay {
+    .areas-map {
       position: absolute;
       inset: 0;
-      background: linear-gradient(to top, rgba(11, 23, 40, 0.65) 0%, transparent 55%);
+      font-family: 'Montserrat', sans-serif;
+      background: #EEF1F5;
+    }
+
+    /* Slightly muted OSM tiles so the blue pins stand out */
+    .areas-map .leaflet-tile-pane {
+      filter: saturate(0.6) contrast(0.96) brightness(1.02);
     }
 
     .areas-map-badge {
       position: absolute;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 16px;
+      left: 16px;
+      z-index: 1000;
+      pointer-events: none;
       background: white;
       border-radius: 10px;
-      padding: 16px 28px;
-      text-align: center;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
-      white-space: nowrap;
+      padding: 12px 16px;
+      text-align: left;
+      box-shadow: 0 8px 28px rgba(11, 23, 40, 0.16);
+      border: 1px solid var(--border);
+      max-width: calc(100% - 80px);
     }
 
     .areas-map-badge strong {
       font-family: 'Montserrat', sans-serif;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--text);
       display: block;
     }
 
     .areas-map-badge span {
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--muted);
     }
 
-    .areas-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-    }
-
-    .area-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 9px 18px;
-      border: 1.5px solid var(--border);
-      border-radius: 100px;
-      font-size: 14px;
+    .areas-map-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      transform: translate(-50%, 6px);
+      z-index: 1000;
+      pointer-events: none;
+      background: rgba(11, 23, 40, 0.88);
+      color: white;
+      font-size: 12.5px;
       font-weight: 600;
-      color: var(--text);
-      background: white;
-      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-      cursor: default;
+      padding: 9px 14px;
+      border-radius: 100px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.25s ease, transform 0.25s ease;
     }
 
-    .area-pill:hover {
+    .areas-map-hint.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    /* Pins */
+    .town-pin {
+      width: 26px;
+      height: 26px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--blue);
+      transform: rotate(-45deg);
+      border: 2.5px solid white;
+      box-shadow: 0 3px 10px rgba(11, 23, 40, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+    }
+
+    .town-pin::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .town-pin.is-base {
+      width: 34px;
+      height: 34px;
+      background: var(--navy);
+      border-color: var(--blue);
+    }
+
+    .town-pin.is-base::after {
+      width: 10px;
+      height: 10px;
+      background: var(--blue);
+    }
+
+    .leaflet-marker-icon:hover .town-pin,
+    .leaflet-marker-icon:focus-visible .town-pin {
+      transform: rotate(-45deg) scale(1.15);
+      background: var(--blue2);
+    }
+
+    .leaflet-marker-icon:hover .town-pin.is-base {
+      background: var(--navy2);
+    }
+
+    /* Town name labels */
+    .areas-map .leaflet-tooltip.town-label {
+      background: var(--navy);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      padding: 5px 9px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(11, 23, 40, 0.25);
+      opacity: 0 !important;
+      transition: opacity 0.18s ease;
+    }
+
+    .areas-map .leaflet-tooltip.town-label::before {
+      border-top-color: var(--navy);
+    }
+
+    .areas-map .leaflet-tooltip.town-label.fit,
+    .areas-map .leaflet-tooltip.town-label.on {
+      opacity: 1 !important;
+    }
+
+    .areas-map .leaflet-tooltip.town-label.on {
+      z-index: 10;
+      background: var(--blue);
+    }
+
+    .areas-map .leaflet-tooltip.town-label.on::before {
+      border-top-color: var(--blue);
+    }
+
+    /* Controls in brand style */
+    .areas-map .leaflet-bar {
+      border: none;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(11, 23, 40, 0.18);
+    }
+
+    .areas-map .leaflet-bar a {
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+      color: var(--navy);
+      font-size: 20px;
+      border-bottom-color: var(--border);
+    }
+
+    .areas-map .leaflet-bar a:hover {
       background: var(--blue3);
-      border-color: rgba(26, 110, 245, 0.35);
       color: var(--blue);
-      transform: translateY(-2px);
+    }
+
+    .areas-map .leaflet-control-attribution {
+      font-family: 'Inter', sans-serif;
+      font-size: 10.5px;
+      background: rgba(255, 255, 255, 0.85);
+      border-top-left-radius: 6px;
     }
 
 
@@ -1814,6 +1925,204 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     }
+
+
+    /* ══════════════════════════════════════
+       RESPONSIVE — tablet & mobile only.
+       Desktop (> 1024px) is untouched.
+       ══════════════════════════════════════ */
+
+    /* ── Tablet ≤ 1024px ─────────────────── */
+    @media (max-width: 1024px) {
+      .nav-links { gap: 18px; }
+      .nav-inner { padding: 0 20px; gap: 16px; }
+
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .about-inner { grid-template-columns: 1fr; gap: 40px; max-width: 720px; }
+
+      .services-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .service-card:last-child:nth-child(odd) { grid-column: 1 / -1; aspect-ratio: 21 / 9; }
+
+      .why-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+      .why-divider { display: none; }
+
+      .contact-inner { grid-template-columns: 1fr; gap: 48px; max-width: 640px; }
+
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 36px 32px; }
+      .footer-top > div:first-child { grid-column: 1 / -1; }
+      .footer-links { gap: 2px; }
+      .footer-links a { display: block; padding: 7px 0; }
+    }
+
+    /* ── Mobile ≤ 820px: collapse nav ────── */
+    @media (max-width: 820px) {
+      .nav-links { display: none; }
+    }
+
+    /* ── Phone ≤ 640px ───────────────────── */
+    @media (max-width: 640px) {
+      html, body { overflow-x: hidden; }
+
+      /* Nav: logo + phone icon + quote button */
+      nav { top: 8px; width: calc(100% - 16px); border-radius: 12px; }
+      .nav-inner { padding: 0 8px 0 14px; height: 54px; gap: 8px; }
+      .logo-text { font-size: 15px; white-space: nowrap; }
+      .nav-inner > div:last-child { gap: 6px !important; flex-shrink: 0; }
+      .nav-phone {
+        font-size: 0;
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.10);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+      }
+      .nav-phone::before {
+        content: '';
+        width: 18px; height: 18px;
+        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.32 2 2 0 0 1 3.62 1.14h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E") center / contain no-repeat;
+      }
+      .btn-nav { padding: 0 14px; height: 40px; display: inline-flex; align-items: center; font-size: 13px; border-radius: 8px; }
+
+      /* Hero */
+      .hero { min-height: 0; margin: 8px; padding: 92px 0 36px; border-radius: 18px; }
+      .hero-overlay {
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.80) 55%, rgba(255, 255, 255, 0.70) 100%);
+      }
+      .hero-inner { padding: 0 18px; }
+      .hero-inner > div { width: 100%; }
+      .hero-tag { font-size: 10.5px; letter-spacing: 0.04em; padding: 7px 14px 7px 11px; border-radius: 14px; line-height: 1.35; margin-bottom: 18px; }
+      .hero-tag-dot { flex-shrink: 0; }
+      .hero-h1 { font-size: clamp(36px, 10.5vw, 46px); }
+      .hero-sub { font-size: 15px; margin: 14px 0 26px; }
+      .hero-ctas { flex-direction: column; gap: 10px; margin-bottom: 24px; }
+      .hero-ctas a { width: 100%; justify-content: center; text-align: center; }
+      .btn-primary { padding: 16px 18px; font-size: 14px; letter-spacing: 0.03em; }
+      .btn-ghost { padding: 14px 18px; }
+      .hero-stars { padding: 9px 14px; }
+      .stars-row svg { width: 16px; height: 16px; }
+      .stars-text { font-size: 13px; }
+      /* Hero order on mobile: tag, title, description, reviews pill, CTAs, credentials (one row) */
+      .hero-left { display: flex; flex-direction: column; align-items: stretch; }
+      .hero-trust { display: contents !important; }
+      .hero-tag { order: 1; align-self: flex-start; }
+      .hero-h1 { order: 2; }
+      .hero-sub { order: 3; }
+      .hero-stars { order: 4; align-self: flex-start; margin-bottom: 18px; }
+      .hero-ctas { order: 5; }
+      .hero-creds { order: 6; flex-wrap: nowrap !important; gap: 6px !important; width: 100%; }
+      .hero-creds > div { flex: 1 1 0; min-width: 0; justify-content: center; text-align: center; padding: 8px 6px !important; gap: 0 !important; }
+      .hero-creds > div > div { display: none !important; }
+      .hero-creds > div > span { font-size: 10.5px !important; line-height: 1.25; letter-spacing: 0 !important; }
+
+      /* Shared section rhythm */
+      .section-h2 { font-size: clamp(25px, 7.4vw, 30px); }
+      .section-desc { font-size: 15px; }
+      .section-cta-wrap { flex-direction: column; align-items: stretch; margin-top: 36px; max-width: 420px; margin-left: auto; margin-right: auto; }
+      .section-cta-wrap a { justify-content: center; text-align: center; padding: 15px 18px; }
+      .about-section .section-cta-wrap { margin-left: 0; margin-right: 0; max-width: none; }
+
+      /* Stats */
+      .stats-section { margin: 0 8px; padding: 56px 0; border-radius: 18px; }
+      .stats-section > div { padding: 0 16px !important; }
+      .stats-grid { gap: 10px; margin-top: 32px; }
+      .stat-card { padding: 22px 10px; border-radius: 16px; }
+      .stat-num { font-size: clamp(32px, 9.5vw, 40px); }
+      .stat-label { font-size: 13.5px; }
+      .stat-desc { font-size: 12px; }
+
+      /* About */
+      .about-section { padding: 64px 0; }
+      .about-inner { padding: 0 18px; gap: 32px; }
+      .about-img-badge { bottom: 14px; right: 14px; padding: 10px 14px; }
+      .about-img-badge strong { font-size: 22px; }
+      .about-img-badge span { font-size: 11px; }
+      .about-h2 { font-size: clamp(26px, 7.6vw, 32px); }
+      .about-bullets { display: none; }
+      .about-bullet { padding: 8px 12px; font-size: 12.5px; }
+
+      /* Services */
+      .services-section { padding: 64px 0; }
+      .services-header { padding: 0 18px; margin-bottom: 32px; }
+      .services-grid { grid-template-columns: 1fr !important; padding: 0 18px; gap: 14px; }
+      .service-card,
+      .service-card:last-child:nth-child(odd) { aspect-ratio: 16 / 11; }
+      .service-card-body { padding: 18px 18px 16px; }
+      .service-h3 { font-size: 19px; }
+      .service-p { margin-bottom: 0; }
+      .services-section > .section-cta-wrap { padding: 0 18px; }
+
+      /* Process */
+      .why-section { padding: 64px 0; }
+      .why-inner { padding: 0 18px; }
+      .why-header { margin-bottom: 32px; }
+      .why-grid { grid-template-columns: 1fr; gap: 12px; }
+      .why-card {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        column-gap: 16px;
+        align-items: start;
+        padding: 22px 20px;
+      }
+      .why-card-num { grid-row: 1 / span 3; font-size: 44px; margin-bottom: 0; }
+      .why-card-icon { display: none; }
+      .why-card-h { font-size: 16px; margin-bottom: 4px; }
+
+      /* Areas */
+      .areas-section { padding: 64px 0; }
+      .areas-inner { padding: 0 18px; }
+      .areas-header { margin-bottom: 32px; }
+      .areas-map-wrap { height: 360px; }
+      .areas-map-badge { top: 10px; left: 10px; padding: 9px 12px; max-width: calc(100% - 70px); }
+      .areas-map-badge strong { font-size: 13.5px; }
+      .areas-map-badge span { font-size: 11.5px; }
+      .areas-map-hint { font-size: 12px; bottom: 18px; }
+
+      /* FAQ */
+      .faq-section { padding: 64px 0; }
+      .faq-inner { padding: 0 18px; }
+      .faq-header { margin-bottom: 32px; }
+      .faq-q { padding: 18px 16px 18px 18px; font-size: 15px; gap: 12px; }
+      .faq-body-inner { padding: 0 18px 18px; }
+      .faq-body-inner p { font-size: 14.5px; }
+
+      /* Contact */
+      .contact-section { padding: 64px 0; }
+      .contact-inner { padding: 0 16px; gap: 36px; }
+      .contact-info { margin-top: 28px; gap: 10px; }
+      .contact-info-item { padding: 14px 16px; }
+      .contact-info-val { font-size: 15px; }
+      .contact-form-card { padding: 24px 20px; }
+      .contact-form-card > div:first-child { margin: -24px -20px 20px !important; border-radius: 14px 14px 0 0 !important; }
+      .form-row { grid-template-columns: 1fr; gap: 12px; }
+      .form-input { font-size: 16px; padding: 12px 14px; } /* 16px stops iOS zoom-on-focus */
+      .btn-form { padding: 16px; }
+
+      /* Footer */
+      footer { padding: 48px 0 24px; }
+      .footer-inner { padding: 0 20px; }
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 32px 20px; padding-bottom: 32px; margin-bottom: 20px; }
+      .footer-top > div:first-child,
+      .footer-top > div:last-child { grid-column: 1 / -1; }
+      .footer-links { gap: 2px; }
+      .footer-links a { display: block; padding: 7px 0; word-break: break-word; }
+      .footer-bottom { flex-direction: column; align-items: flex-start; gap: 6px; }
+      .footer-bottom-links { flex-wrap: wrap; gap: 0 20px; }
+      .footer-bottom-links a { display: inline-block; padding: 8px 0; }
+
+      /* Toast */
+      #toast { padding: 36px 24px 28px; }
+    }
+
+    /* ── Small phones ≤ 370px ────────────── */
+    @media (max-width: 370px) {
+      .logo-text { font-size: 14px; }
+      .btn-nav { padding: 0 11px; font-size: 12.5px; }
+      .hero-h1 { font-size: 34px; }
+      .btn-primary { font-size: 13px; letter-spacing: 0.02em; padding: 16px 14px; gap: 8px; }
+      .hero-tag { font-size: 10px; letter-spacing: 0.02em; }
+      .stat-card { padding: 20px 8px; }
+    }
   </style>
 </head>
 
@@ -1838,7 +2147,7 @@
 
       <div style="display:flex; align-items:center; gap:18px;">
         <a href="tel:+33652258235" class="nav-phone">☎ 06 52 25 82 35</a>
-        <a href="#contact" class="btn-nav">Devis Gratuit</a>
+        <a href="#devis-form" class="btn-nav">Devis Gratuit</a>
       </div>
     </div>
   </nav>
@@ -1852,7 +2161,7 @@
 
     <div class="hero-inner">
       <!-- Left -->
-      <div>
+      <div class="hero-left">
         <div class="hero-tag">
           <span class="hero-tag-dot"></span>
           Plombier #1 Dans La Région De La Drôme
@@ -1871,7 +2180,7 @@
 
 
         <div class="hero-ctas">
-          <a href="#contact" class="btn-primary">
+          <a href="#devis-form" class="btn-primary">
             Obtenez Votre Devis Gratuit
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.8"
               stroke-linecap="round" stroke-linejoin="round">
@@ -1892,7 +2201,7 @@
 
 
         <!-- Reviews + credentials block -->
-        <div style="display:flex; flex-direction:column; gap:16px; align-items:flex-start;">
+        <div class="hero-trust" style="display:flex; flex-direction:column; gap:16px; align-items:flex-start;">
 
 
           <!-- Google Reviews pill -->
@@ -1924,7 +2233,7 @@
 
 
           <!-- Trust credential strip -->
-          <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+          <div class="hero-creds" style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
             <!-- Inspection Gratuite -->
             <div
               style="display:inline-flex; align-items:center; gap:7px; padding:7px 13px; background:white; border:1px solid rgba(0,0,0,0.1); border-radius:7px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
@@ -2011,7 +2320,7 @@
         </div>
       </div>
       <div class="section-cta-wrap reveal">
-        <a href="#contact" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
+        <a href="#devis-form" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
         <a href="tel:+33652258235" class="section-cta-btn-urgent">📞 Appelez Maintenant</a>
       </div>
     </div>
@@ -2024,7 +2333,7 @@
       <!-- Left: Photo -->
       <div class="reveal">
         <div class="about-img-wrap">
-          <img src="image-3.png" alt="Marc Eau Plomberie" />
+          <img src="image-3.png" loading="lazy" decoding="async" alt="Marc Eau Plomberie" />
           <div class="about-img-badge">
             <strong>30+</strong>
             <span>Années D'Expérience</span>
@@ -2067,7 +2376,7 @@
           </span>
         </div>
         <div class="section-cta-wrap" style="justify-content:flex-start; margin-top:32px;">
-          <a href="#contact" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
+          <a href="#devis-form" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
           <a href="tel:+33652258235" class="section-cta-btn-urgent">📞 Appelez Maintenant</a>
         </div>
       </div>
@@ -2088,7 +2397,7 @@
 
       <!-- Installation de Plomberie -->
       <div class="service-card reveal">
-        <img class="service-card-img" src="image-5.png" alt="Installation de Plomberie"
+        <img class="service-card-img" src="image-5.png" loading="lazy" decoding="async" alt="Installation de Plomberie"
           style="object-position:center 40%;" />
         <div class="service-card-overlay"></div>
         <div class="service-card-accent"></div>
@@ -2102,7 +2411,7 @@
 
       <!-- Réparation & Entretien -->
       <div class="service-card reveal">
-        <img class="service-card-img" src="image-4.png" alt="Réparation et Entretien"
+        <img class="service-card-img" src="image-4.png" loading="lazy" decoding="async" alt="Réparation et Entretien"
           style="object-position:center 50%;" />
         <div class="service-card-overlay"></div>
         <div class="service-card-accent"></div>
@@ -2115,7 +2424,7 @@
 
       <!-- Services d'Urgence -->
       <div class="service-card reveal">
-        <img class="service-card-img" src="image-6.png" alt="Services d'Urgence" style="object-position:center 30%;" />
+        <img class="service-card-img" src="image-6.png" loading="lazy" decoding="async" alt="Services d'Urgence" style="object-position:center 30%;" />
         <div class="service-card-overlay"></div>
         <div class="service-card-accent"></div>
         <div class="service-card-body">
@@ -2127,7 +2436,7 @@
 
     </div>
     <div class="section-cta-wrap reveal">
-      <a href="#contact" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
+      <a href="#devis-form" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
       <a href="tel:+33652258235" class="section-cta-btn-urgent">📞 Appelez Maintenant</a>
     </div>
   </section>
@@ -2230,34 +2539,16 @@
           la Drôme et les communautés environnantes.</p>
       </div>
       <div class="areas-map-wrap reveal">
-        <img src="image-7.jpg" alt="Région de la Drôme" />
-        <div class="areas-map-overlay"></div>
+        <div id="areas-map" class="areas-map" role="region"
+          aria-label="Carte interactive des communes desservies autour de Crest, Drôme"></div>
         <div class="areas-map-badge">
           <strong>Région de la Drôme</strong>
           <span>Crest et communes environnantes</span>
         </div>
-      </div>
-      <div class="areas-pills reveal">
-        <span class="area-pill">📍 Allex</span>
-        <span class="area-pill">📍 Aoust-sur-Sye</span>
-        <span class="area-pill">📍 Autichamp</span>
-        <span class="area-pill">📍 Beaufort-sur-Gervanne</span>
-        <span class="area-pill">📍 Chabrillan</span>
-        <span class="area-pill">📍 Crest</span>
-        <span class="area-pill">📍 Cobonne</span>
-        <span class="area-pill">📍 Divajeu</span>
-        <span class="area-pill">📍 Eurre</span>
-        <span class="area-pill">📍 Grâne</span>
-        <span class="area-pill">📍 Mirabel-et-Blacons</span>
-        <span class="area-pill">📍 Montoison</span>
-        <span class="area-pill">📍 Piégros-la-Clastre</span>
-        <span class="area-pill">📍 Saillans</span>
-        <span class="area-pill">📍 Saou</span>
-        <span class="area-pill">📍 Suze</span>
-        <span class="area-pill">📍 Vaunaveys-la-Rochette</span>
+        <div class="areas-map-hint" id="areas-map-hint" aria-hidden="true"></div>
       </div>
       <div class="section-cta-wrap reveal">
-        <a href="#contact" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
+        <a href="#devis-form" class="section-cta-btn">Obtenez Votre Devis Gratuit →</a>
         <a href="tel:+33652258235" class="section-cta-btn-urgent">📞 Appelez Maintenant</a>
       </div>
     </div>
@@ -2354,7 +2645,7 @@
           </button>
           <div class="faq-body">
             <div class="faq-body-inner">
-              <p>Nous intervenons dans toute la région de la Drôme, principalement autour de Crest et des communes environnantes : Allex, Aoust-sur-Sye, Grâne, Saillans, Montoison, Vaunaveys-la-Rochette, et bien d'autres. Contactez-nous pour vérifier si votre commune est couverte.</p>
+              <p>Nous intervenons dans toute la région de la Drôme, principalement autour de Crest et des communes environnantes : Allex, Aouste-sur-Sye, Grâne, Saillans, Montoison, Vaunaveys-la-Rochette, et bien d'autres. Contactez-nous pour vérifier si votre commune est couverte.</p>
             </div>
           </div>
         </div>
@@ -2437,7 +2728,7 @@
 
       <!-- Right: Form -->
       <div class="reveal">
-        <div class="contact-form-card">
+        <div class="contact-form-card" id="devis-form">
           <!-- Form top bar -->
           <div
             style="background:linear-gradient(135deg,#0d1e3a 0%,#0a1628 100%); border-radius:10px 10px 0 0; padding:14px 20px; display:flex; align-items:center; gap:10px; margin:-24px -24px 20px;">
@@ -2595,7 +2886,172 @@
   </div>
 
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+    integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script>
+    // ── Service-area map (Leaflet + OpenStreetMap) ──
+    // Coordinates = town hall of each commune (geo.api.gouv.fr, Drôme 26).
+    (function () {
+      var el = document.getElementById('areas-map');
+      if (!el) return;
+
+      // Ordered by label priority: when names would overlap, earlier ones win.
+      var TOWNS = [
+        ['Crest', 44.7284, 5.0240, true], // our base
+        ['Saillans', 44.6979, 5.1971],
+        ['Allex', 44.7650, 4.9155],
+        ['Grâne', 44.7313, 4.9229],
+        ['Aouste-sur-Sye', 44.7140, 5.0565],
+        ['Montoison', 44.7965, 4.9419],
+        ['Saou', 44.6463, 5.0638],
+        ['Beaufort-sur-Gervanne', 44.7761, 5.1432],
+        ['Mirabel-et-Blacons', 44.7109, 5.0914],
+        ['Eurre', 44.7585, 4.9899],
+        ['Chabrillan', 44.7236, 4.9413],
+        ['Divajeu', 44.7050, 5.0049],
+        ['Piégros-la-Clastre', 44.6989, 5.0978],
+        ['Autichamp', 44.6817, 4.9659],
+        ['Cobonne', 44.7597, 5.0750],
+        ['Suze', 44.7595, 5.1129],
+        ['Vaunaveys-la-Rochette', 44.7678, 5.0327]
+      ];
+      var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      var hint = document.getElementById('areas-map-hint');
+      var hintTimer;
+
+      function showHint(text) {
+        if (!hint) return;
+        hint.textContent = text;
+        hint.classList.add('show');
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(function () { hint.classList.remove('show'); }, 1600);
+      }
+
+      function init() {
+        if (!window.L) return;
+        var map = L.map(el, {
+          zoomControl: false,
+          scrollWheelZoom: false,  // enabled on click so the page keeps scrolling
+          dragging: !coarse,       // on touch: 1 finger scrolls the page, 2 fingers move the map
+          touchZoom: true,
+          zoomSnap: 0.25,
+          minZoom: 7,
+          maxZoom: 17
+        });
+        map.attributionControl.setPrefix(false);
+        L.control.zoom({ position: 'topright', zoomInTitle: 'Zoomer', zoomOutTitle: 'Dézoomer' }).addTo(map);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // Soft service-radius ring around Crest
+        L.circle([44.7284, 5.0240], {
+          radius: 16000, interactive: false,
+          color: '#1A6EF5', weight: 1.5, opacity: 0.45, dashArray: '6 6',
+          fillColor: '#1A6EF5', fillOpacity: 0.05
+        }).addTo(map);
+
+        var labels = [], markers = [];
+        function clearActive() { labels.forEach(function (t) { var e = t.getElement(); if (e) e.classList.remove('on'); }); }
+
+        var bounds = L.latLngBounds([]);
+        TOWNS.forEach(function (t) {
+          var base = !!t[3], s = base ? 34 : 26;
+          var tip = Math.round(s / 2 + s * 0.7071); // tip of the rotated pin
+          var marker = L.marker([t[1], t[2]], {
+            title: t[0], alt: t[0], riseOnHover: true, zIndexOffset: base ? 1000 : 0,
+            icon: L.divIcon({
+              className: '',
+              html: '<div class="town-pin' + (base ? ' is-base' : '') + '"></div>',
+              iconSize: [s, s],
+              iconAnchor: [s / 2, tip],
+              tooltipAnchor: [0, -(tip + 4)]
+            })
+          }).addTo(map);
+
+          marker.bindTooltip(t[0], {
+            permanent: true, direction: 'top', className: 'town-label', opacity: 1
+          });
+          var tt = marker.getTooltip();
+          labels.push(tt);
+          markers.push(marker);
+
+          marker.on('mouseover', function () { var e = tt.getElement(); if (e) e.classList.add('on'); });
+          marker.on('mouseout', function () { var e = tt.getElement(); if (e && !e.dataset.pinned) e.classList.remove('on'); });
+          marker.on('click', function () {
+            var e = tt.getElement();
+            labels.forEach(function (o) { var oe = o.getElement(); if (oe && oe !== e) { oe.classList.remove('on'); delete oe.dataset.pinned; } });
+            if (e) { e.classList.add('on'); e.dataset.pinned = '1'; }
+          });
+          bounds.extend([t[1], t[2]]);
+        });
+
+        map.on('click', function () {
+          labels.forEach(function (o) { var oe = o.getElement(); if (oe) delete oe.dataset.pinned; });
+          clearActive();
+        });
+
+        var badge = el.parentElement.querySelector('.areas-map-badge');
+
+        // Show each name only where it fits: inside the map, not over
+        // another name, a pin, the badge or the zoom buttons.
+        function overlaps(a, b, m) {
+          return a.left < b.right + m && a.right > b.left - m && a.top < b.bottom + m && a.bottom > b.top - m;
+        }
+        function layoutLabels() {
+          var box = el.getBoundingClientRect();
+          var taken = [];
+          if (badge) taken.push(badge.getBoundingClientRect());
+          var zc = el.querySelector('.leaflet-control-zoom');
+          if (zc) taken.push(zc.getBoundingClientRect());
+          var pins = markers.map(function (m) { var p = m.getElement(); return p ? p.firstChild.getBoundingClientRect() : null; });
+          labels.forEach(function (t, i) {
+            var e = t.getElement();
+            if (!e) return;
+            var r = e.getBoundingClientRect();
+            var ok = r.left >= box.left + 4 && r.right <= box.right - 4 && r.top >= box.top + 4 && r.bottom <= box.bottom - 4 &&
+              !taken.some(function (o) { return overlaps(r, o, 4); }) &&
+              !pins.some(function (p, j) { return j !== i && p && overlaps(r, p, 1); });
+            e.classList.toggle('fit', ok);
+            if (ok) taken.push(r);
+          });
+        }
+        map.on('zoomend moveend', layoutLabels);
+        window.addEventListener('resize', layoutLabels);
+
+        var topPad = badge ? badge.offsetTop + badge.offsetHeight + 34 : 40;
+        map.fitBounds(bounds, { paddingTopLeft: [28, topPad], paddingBottomRight: [56, 28] });
+        layoutLabels();
+
+        // Desktop: wheel zoom only after the map is clicked
+        map.on('click focus', function () { map.scrollWheelZoom.enable(); });
+        el.addEventListener('mouseleave', function () { map.scrollWheelZoom.disable(); });
+        el.addEventListener('wheel', function () {
+          if (!map.scrollWheelZoom.enabled()) showHint('Cliquez sur la carte pour zoomer avec la molette');
+        }, { passive: true });
+
+        // Touch: hint when someone tries to drag with one finger
+        if (coarse) {
+          el.addEventListener('touchmove', function (e) {
+            if (e.touches.length === 1) showHint('Utilisez deux doigts pour déplacer la carte');
+          }, { passive: true });
+        }
+      }
+
+      // Only load tiles when the section gets close to the screen
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); init(); }
+        }, { rootMargin: '400px 0px' });
+        io.observe(el);
+      } else {
+        init();
+      }
+    })();
+
     // FAQ accordion
     document.querySelectorAll('.faq-q').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2658,7 +3114,7 @@
 
 
     // Form
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1a1a0IkuW6xS6HZaiUYzh-H1fhd2radyic2kHsRd-rGVktEp534S6eGOMJcRdaM6yzg/exec';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxbg-xwsakZcv5GOXl2LPbL3OtFuzlPYhHedhQ_FjisdO1MlOD2XKZPZqwZQKOjmAI3YA/exec';
 
     function submitForm(e) {
       e.preventDefault();
