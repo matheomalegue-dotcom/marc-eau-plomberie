@@ -1985,7 +1985,7 @@
       .btn-nav { padding: 0 14px; height: 40px; display: inline-flex; align-items: center; font-size: 13px; border-radius: 8px; }
 
       /* Hero */
-      .hero { min-height: 0; margin: 8px; padding: 92px 0 36px; border-radius: 18px; }
+      .hero { min-height: calc(100vh - 12px); min-height: calc(100svh - 12px); margin: 8px; padding: 92px 0 36px; border-radius: 18px; }
       .hero-overlay {
         background: linear-gradient(to bottom, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.80) 55%, rgba(255, 255, 255, 0.70) 100%);
       }
@@ -2014,6 +2014,24 @@
       .hero-creds > div { flex: 1 1 0; min-width: 0; justify-content: center; text-align: center; padding: 8px 6px !important; gap: 0 !important; }
       .hero-creds > div > div { display: none !important; }
       .hero-creds > div > span { font-size: 10.5px !important; line-height: 1.25; letter-spacing: 0 !important; }
+
+      /* Hero spacing on mobile: more breathing room between blocks */
+      .hero { padding-top: 108px; padding-bottom: 40px; }
+      .hero-tag { margin-bottom: 28px; }
+      .hero-h1 { margin-bottom: 20px; line-height: 1.1; }
+      .hero-sub { margin: 0 0 30px; line-height: 1.65; }
+      .hero-stars { margin-bottom: 30px; }
+      .hero-ctas { gap: 12px; margin-bottom: 32px; }
+      .hero-creds { gap: 8px !important; }
+      /* Short phones (e.g. iPhone SE): tighter spacing so the hero still fits */
+      @media (max-height: 700px) {
+        .hero { padding-top: 92px; padding-bottom: 28px; }
+        .hero-tag { margin-bottom: 18px; }
+        .hero-h1 { margin-bottom: 14px; }
+        .hero-sub { margin-bottom: 20px; }
+        .hero-stars { margin-bottom: 20px; }
+        .hero-ctas { gap: 10px; margin-bottom: 20px; }
+      }
 
       /* Shared section rhythm */
       .section-h2 { font-size: clamp(25px, 7.4vw, 30px); }
